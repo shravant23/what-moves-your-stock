@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #0a0e1a;
+  color: #e2e8f0;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+.panel {
+  @apply bg-panel border border-line rounded-xl;
+}
+
+.hero-gradient {
+  background: radial-gradient(
+    ellipse 70% 55% at 50% -5%,
+    rgba(59, 130, 246, 0.18),
+    transparent
+  );
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #1e2638;
+  border-radius: 8px;
+}
