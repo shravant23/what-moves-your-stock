@@ -186,7 +186,10 @@ def build_subgraph(
     exposure_direction = {e.name: e.direction for e in profile.exposures}
     for trend in trends or []:
         trend_id = f"{company_id}_trend_{trend_slug(trend)}"
-        nodes[trend_id] = GraphNode(id=trend_id, label=trend.topic, category="demand_driver")
+        # Suffix distinguishes web-sourced trends from same-named filing exposures.
+        nodes[trend_id] = GraphNode(
+            id=trend_id, label=f"{trend.topic} · live", category="demand_driver"
+        )
         target = _match_text(trend.topic, seed_nodes)
         if target is None or target not in nodes:
             target = company_id

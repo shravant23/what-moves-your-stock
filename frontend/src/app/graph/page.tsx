@@ -1,9 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import NetworkGraph from "@/components/NetworkGraph";
 import NodeDrawer from "@/components/NodeDrawer";
+
+const NetworkGraph = dynamic(() => import("@/components/NetworkGraph"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-slate-500">
+      Loading graph…
+    </div>
+  ),
+});
 import { api, Graph, GraphEdge, GraphNode } from "@/lib/api";
 
 export default function GraphExplorer() {
@@ -59,6 +68,7 @@ export default function GraphExplorer() {
           <>
             <NetworkGraph
               graph={graph}
+              searchable
               onSelectNode={(node, edges) =>
                 setSelected(node ? { node, edges } : null)
               }

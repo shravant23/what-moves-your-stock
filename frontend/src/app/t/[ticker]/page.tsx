@@ -1,9 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import NetworkGraph from "@/components/NetworkGraph";
 import NodeDrawer from "@/components/NodeDrawer";
+
+const NetworkGraph = dynamic(() => import("@/components/NetworkGraph"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-slate-500">
+      Loading graph…
+    </div>
+  ),
+});
 import ProgressScreen from "@/components/ProgressScreen";
 import ReportPanel from "@/components/ReportPanel";
 import {
@@ -27,6 +36,7 @@ export default function AnalysisPage({ params }: { params: { ticker: string } })
   const [profile, setProfile] = useState<ExposureProfile | null>(null);
   const [error, setError] = useState<string>("");
   const [selected, setSelected] = useState<{ node: GraphNode; edges: GraphEdge[] } | null>(null);
+  const [view, setView] = useState<"exposures" | "full">("exposures");
   const pollRef = useRef<ReturnType<typeof setInterval>>();
 
   const loadAll = useCallback(async () => {
@@ -96,6 +106,22 @@ export default function AnalysisPage({ params }: { params: { ticker: string } })
     return (id: string) => map.get(id) ?? id;
   }, [graph]);
 
+  // "Direct exposures" = the company + everything wired straight into it
+  // (plus attached trend nodes). "Full web" adds the upstream macro context.
+  const displayGraph = useMemo(() => {
+    if (!graph) return null;
+    if (view === "full") return graph;
+    const companyId = ticker.toLowerCase();
+    const keep = new Set([companyId]);
+    for (const e of graph.edges) if (e.target === companyId) keep.add(e.source);
+    for (const e of graph.edges)
+      if (e.source.includes("_trend_") && keep.has(e.target)) keep.add(e.source);
+    return {
+      nodes: graph.nodes.filter((n) => keep.has(n.id)),
+      edges: graph.edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
+    };
+  }, [graph, view, ticker]);
+
   return (
     <main className="flex h-screen flex-col">
       <header className="flex items-center gap-4 border-b border-line px-5 py-3">
@@ -148,12 +174,34 @@ export default function AnalysisPage({ params }: { params: { ticker: string } })
           {/* left 60%: network map */}
           <div className="relative h-[45vh] border-b border-line lg:h-auto lg:w-[60%] lg:border-b-0 lg:border-r">
             <NetworkGraph
-              graph={graph}
+              key={view}
+              graph={displayGraph ?? graph}
               companyId={ticker.toLowerCase()}
               onSelectNode={(node, edges) =>
                 setSelected(node ? { node, edges } : null)
               }
             />
+            {/* view toggle */}
+            <div className="panel absolute left-4 top-4 flex overflow-hidden bg-panel/90 p-0.5 backdrop-blur">
+              {(
+                [
+                  ["exposures", "Direct exposures"],
+                  ["full", "Full web"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setView(value)}
+                  className={`rounded-[10px] px-3 py-1.5 text-xs font-medium transition ${
+                    view === value
+                      ? "bg-accent/15 text-accent"
+                      : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {selected && (
               <NodeDrawer
                 node={selected.node}
