@@ -26,7 +26,8 @@ EDGAR_USER_AGENT: str = os.getenv(
     "EDGAR_USER_AGENT", "Prism Research contact@example.com"
 )
 
-DB_PATH: Path = BACKEND_DIR / "prism.db"
+# Overridable so the test suite can run against a throwaway database.
+DB_PATH: Path = Path(os.getenv("PRISM_DB_PATH") or (BACKEND_DIR / "prism.db"))
 
 # Anthropic model used when LLM_PROVIDER=anthropic (spec-pinned).
 LLM_MODEL: str = "claude-sonnet-4-6"
