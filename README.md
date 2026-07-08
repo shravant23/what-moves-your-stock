@@ -1,6 +1,6 @@
-# Prism
+# What Moves Your Stock
 
-**See what actually moves your stock.** Enter a ticker; get an interactive
+**Prism** — enter a ticker; get an interactive
 macro exposure network map and a cited, traceable macro analysis report —
 tailwinds, headwinds, what's priced in, and what would falsify the thesis.
 
