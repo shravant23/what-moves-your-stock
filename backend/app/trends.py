@@ -131,7 +131,10 @@ async def get_sector_trends(
 
 
 def get_cached_trends(ticker: str) -> list[SectorTrend]:
-    cached = cache_get_json(_trends_cache_key(ticker), TREND_TTL)
+    from .config import DEMO_MODE
+
+    ttl = None if DEMO_MODE else TREND_TTL
+    cached = cache_get_json(_trends_cache_key(ticker), ttl)
     return [SectorTrend.model_validate(t) for t in cached] if cached else []
 
 

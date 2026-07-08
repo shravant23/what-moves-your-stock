@@ -149,6 +149,22 @@ python scripts/prove_phase_c2.py   # web-grounded sector trends
 python scripts/prove_phase_d.py    # full reasoning engine report
 ```
 
+## Deploying a public demo (free)
+
+The repo ships a demo mode: pre-analyzed tickers (see `backend/data/demo_cache.db`,
+built with `scripts/make_demo_cache.py`) are served instantly and forever, while
+analysis of new tickers is disabled — so a public instance needs **no API keys**
+and can't have its LLM quota drained.
+
+1. **Backend on Render** — New → Blueprint → select this repo. `render.yaml`
+   configures everything (`DEMO_MODE=true`). Note the service URL.
+2. **Frontend on Vercel** — Add New → Project → import this repo, set
+   **Root Directory** to `frontend`, and add env var
+   `NEXT_PUBLIC_API_URL=https://<your-render-service>.onrender.com`.
+
+Free-tier caveat: Render spins the backend down when idle; the first visit
+after a quiet spell takes ~30–60s to wake.
+
 ## Notes on the free tier
 
 Gemini free-tier quotas are small and per-model (e.g. 20 requests/day on

@@ -44,6 +44,14 @@ def cache_set(key: str, value: str) -> None:
         session.commit()
 
 
+def cache_keys(prefix: str) -> list[str]:
+    with get_session() as session:
+        rows = session.exec(
+            select(CacheEntry.key).where(CacheEntry.key.startswith(prefix))  # type: ignore[union-attr]
+        ).all()
+    return sorted(rows)
+
+
 def cache_get_json(key: str, ttl: timedelta | None = None) -> Any | None:
     raw = cache_get(key, ttl)
     return None if raw is None else json.loads(raw)

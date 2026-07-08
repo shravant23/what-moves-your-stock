@@ -29,6 +29,11 @@ EDGAR_USER_AGENT: str = os.getenv(
 # Overridable so the test suite can run against a throwaway database.
 DB_PATH: Path = Path(os.getenv("PRISM_DB_PATH") or (BACKEND_DIR / "prism.db"))
 
+# Public-demo deployment mode: pre-analyzed tickers are served from the
+# bundled cache (never expiring), and analysis of new tickers is disabled so
+# visitors can't drain the host's LLM quota.
+DEMO_MODE: bool = os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
+
 # Anthropic model used when LLM_PROVIDER=anthropic (spec-pinned).
 LLM_MODEL: str = "claude-sonnet-4-6"
 

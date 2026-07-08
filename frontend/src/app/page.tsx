@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SearchBox from "@/components/SearchBox";
 
-const EXAMPLES = ["FCX", "DAL", "NVDA", "HD"];
+const EXAMPLES = ["FCX", "NVDA", "MU", "DAL"];
 
 const FEATURES = [
   {

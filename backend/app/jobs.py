@@ -11,7 +11,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from .cache import cache_get_json
+from .config import DEMO_MODE
 from .reasoning import REPORT_TTL, _report_cache_key, generate_report
+
+# Demo deployments serve the bundled cache indefinitely — a stale-looking
+# entry must complete instantly rather than trigger a real (LLM) pipeline.
+_FRESH_TTL = None if DEMO_MODE else REPORT_TTL
 
 STAGES: dict[str, tuple[str, int]] = {
     "queued": ("Queued…", 2),
@@ -79,7 +84,7 @@ def start_analysis(ticker: str) -> Job:
     ticker = ticker.upper()
 
     # Fresh cached report -> instant done (idempotency rule).
-    if cache_get_json(_report_cache_key(ticker), REPORT_TTL) is not None:
+    if cache_get_json(_report_cache_key(ticker), _FRESH_TTL) is not None:
         job = Job(job_id=str(uuid.uuid4()), ticker=ticker, stage="done", status="done")
         _jobs[job.job_id] = job
         return job

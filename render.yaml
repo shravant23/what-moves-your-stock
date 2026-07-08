@@ -1,0 +1,16 @@
+# Render blueprint — deploys the Prism backend as a free web service.
+# In DEMO_MODE the bundled pre-analyzed cache is served and new-ticker
+# analysis is disabled, so no LLM/FRED keys are required.
+services:
+  - type: web
+    name: prism-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: PYTHON_VERSION
+        value: "3.12.6"

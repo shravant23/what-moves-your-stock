@@ -4,9 +4,9 @@ with the async pipeline in Phase D/E."""
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .cache import cache_get_json
+from .cache import cache_get_json, cache_keys
 from .causal_graph import build_subgraph, get_full_graph, persist_seed
-from .config import FRONTEND_ORIGIN
+from .config import DEMO_MODE, FRONTEND_ORIGIN
 from .db import init_db
 from .extraction.extractor import PROFILE_TTL, _profile_cache_key
 from .models import ExposureProfile, Graph, MacroReport
@@ -14,23 +14,38 @@ from .reasoning import REPORT_TTL, _report_cache_key
 
 app = FastAPI(title="Prism API", version="0.1.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    # Cover the common local-dev origins (Next falls back to 3001 when 3000
-    # is taken, and Safari/Chrome may use 127.0.0.1 instead of localhost).
-    allow_origins=list(
-        {
-            FRONTEND_ORIGIN,
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:3001",
-        }
-    ),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if DEMO_MODE:
+    # Public read-only demo: any origin may read; no credentials are used.
+    app.add_middleware(
+        CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        # Cover the common local-dev origins (Next falls back to 3001 when 3000
+        # is taken, and Safari/Chrome may use 127.0.0.1 instead of localhost).
+        allow_origins=list(
+            {
+                FRONTEND_ORIGIN,
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:3001",
+            }
+        ),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+# Demo instances serve the bundled pre-analyzed tickers forever; live
+# instances refresh analyses daily.
+_PROFILE_TTL = None if DEMO_MODE else PROFILE_TTL
+_REPORT_TTL = None if DEMO_MODE else REPORT_TTL
+
+
+def _demo_tickers() -> list[str]:
+    return [k.removeprefix("report:") for k in cache_keys("report:")]
 
 
 @app.on_event("startup")
@@ -78,6 +93,18 @@ async def analyze(ticker: str) -> dict:
     from .clients.edgar import TickerNotFoundError, ticker_to_cik
     from .jobs import start_analysis
 
+    if DEMO_MODE:
+        if cache_get_json(_report_cache_key(ticker), None) is None:
+            available = ", ".join(_demo_tickers())
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"This public demo serves pre-analyzed tickers only ({available}). "
+                    "Clone github.com/shravant23/what-moves-your-stock to analyze any ticker "
+                    "with your own free API keys."
+                ),
+            )
+
     async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
             await ticker_to_cik(client, ticker)
@@ -99,7 +126,7 @@ def job_status(job_id: str) -> dict:
 
 
 def _load_profile(ticker: str) -> ExposureProfile:
-    cached = cache_get_json(_profile_cache_key(ticker), PROFILE_TTL)
+    cached = cache_get_json(_profile_cache_key(ticker), _PROFILE_TTL)
     if cached is None:
         raise HTTPException(
             status_code=404,
@@ -115,7 +142,7 @@ def get_profile(ticker: str) -> ExposureProfile:
 
 @app.get("/report/{ticker}")
 def get_report(ticker: str) -> MacroReport:
-    cached = cache_get_json(_report_cache_key(ticker), REPORT_TTL)
+    cached = cache_get_json(_report_cache_key(ticker), _REPORT_TTL)
     if cached is None:
         raise HTTPException(
             status_code=404,

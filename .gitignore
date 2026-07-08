@@ -10,6 +10,8 @@ __pycache__/
 # Data
 *.db
 *.sqlite
+# ...except the tiny pre-analyzed cache bundled with demo deployments
+!backend/data/demo_cache.db
 
 # Node / Next.js
 node_modules/
