@@ -30,9 +30,10 @@ EDGAR_USER_AGENT: str = os.getenv(
 DB_PATH: Path = Path(os.getenv("PRISM_DB_PATH") or (BACKEND_DIR / "prism.db"))
 
 # Public-demo deployment mode: pre-analyzed tickers are served from the
-# bundled cache (never expiring), and analysis of new tickers is disabled so
-# visitors can't drain the host's LLM quota.
+# bundled cache (never expiring), and fresh analyses are limited to a small
+# daily budget so visitors can't drain the host's LLM quota.
 DEMO_MODE: bool = os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
+ANALYSIS_DAILY_BUDGET: int = int(os.getenv("ANALYSIS_DAILY_BUDGET", "3"))
 
 # Anthropic model used when LLM_PROVIDER=anthropic (spec-pinned).
 LLM_MODEL: str = "claude-sonnet-4-6"

@@ -1,6 +1,7 @@
 # Render blueprint — deploys the Prism backend as a free web service.
-# In DEMO_MODE the bundled pre-analyzed cache is served and new-ticker
-# analysis is disabled, so no LLM/FRED keys are required.
+# DEMO_MODE serves the bundled pre-analyzed tickers instantly and forever,
+# and allows ANALYSIS_DAILY_BUDGET fresh analyses per day (using the host's
+# GEMINI/FRED keys) before politely declining until the next day.
 services:
   - type: web
     name: prism-api
@@ -12,5 +13,11 @@ services:
     envVars:
       - key: DEMO_MODE
         value: "true"
+      - key: ANALYSIS_DAILY_BUDGET
+        value: "3"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
       - key: PYTHON_VERSION
         value: "3.12.6"

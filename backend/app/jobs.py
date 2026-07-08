@@ -8,9 +8,9 @@ running job for the same ticker is reused."""
 import asyncio
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from .cache import cache_get_json
+from .cache import cache_get, cache_get_json, cache_set
 from .config import DEMO_MODE
 from .reasoning import REPORT_TTL, _report_cache_key, generate_report
 
@@ -60,6 +60,20 @@ _jobs: dict[str, Job] = {}
 _running_by_ticker: dict[str, str] = {}
 
 
+# Daily budget for fresh analyses on public-demo instances. Counted in the
+# cache table so it survives worker restarts within the same day.
+def _budget_key() -> str:
+    return f"analysis_budget:{date.today().isoformat()}"
+
+
+def analyses_used_today() -> int:
+    return int(cache_get(_budget_key(), ttl=None) or 0)
+
+
+def consume_analysis_budget() -> None:
+    cache_set(_budget_key(), str(analyses_used_today() + 1))
+
+
 def get_job(job_id: str) -> Job | None:
     return _jobs.get(job_id)
 
@@ -97,5 +111,7 @@ def start_analysis(ticker: str) -> Job:
     job = Job(job_id=str(uuid.uuid4()), ticker=ticker)
     _jobs[job.job_id] = job
     _running_by_ticker[ticker] = job.job_id
+    if DEMO_MODE:
+        consume_analysis_budget()
     asyncio.get_event_loop().create_task(_run(job))
     return job

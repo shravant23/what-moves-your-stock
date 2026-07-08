@@ -152,12 +152,15 @@ python scripts/prove_phase_d.py    # full reasoning engine report
 ## Deploying a public demo (free)
 
 The repo ships a demo mode: pre-analyzed tickers (see `backend/data/demo_cache.db`,
-built with `scripts/make_demo_cache.py`) are served instantly and forever, while
-analysis of new tickers is disabled — so a public instance needs **no API keys**
-and can't have its LLM quota drained.
+built with `scripts/make_demo_cache.py`) are served instantly and forever, and
+visitors may run `ANALYSIS_DAILY_BUDGET` (default 3) fresh analyses per day on
+the host's keys — after that, new tickers get a friendly "budget used, try
+these or come back tomorrow" message instead of an error. The host's LLM quota
+can't be drained.
 
 1. **Backend on Render** — New → Blueprint → select this repo. `render.yaml`
-   configures everything (`DEMO_MODE=true`). Note the service URL.
+   configures everything (`DEMO_MODE=true`); you'll be prompted for your
+   `GEMINI_API_KEY` and `FRED_API_KEY`. Note the service URL.
 2. **Frontend on Vercel** — Add New → Project → import this repo, set
    **Root Directory** to `frontend`, and add env var
    `NEXT_PUBLIC_API_URL=https://<your-render-service>.onrender.com`.

@@ -93,14 +93,18 @@ async def analyze(ticker: str) -> dict:
     from .clients.edgar import TickerNotFoundError, ticker_to_cik
     from .jobs import start_analysis
 
-    if DEMO_MODE:
-        if cache_get_json(_report_cache_key(ticker), None) is None:
+    if DEMO_MODE and cache_get_json(_report_cache_key(ticker), None) is None:
+        from .config import ANALYSIS_DAILY_BUDGET
+        from .jobs import analyses_used_today
+
+        if analyses_used_today() >= ANALYSIS_DAILY_BUDGET:
             available = ", ".join(_demo_tickers())
             raise HTTPException(
-                status_code=403,
+                status_code=429,
                 detail=(
-                    f"This public demo serves pre-analyzed tickers only ({available}). "
-                    "Clone github.com/shravant23/what-moves-your-stock to analyze any ticker "
+                    "Today's demo budget for fresh analyses is used up (it resets daily). "
+                    f"Ready to explore right now: {available}. Or clone "
+                    "github.com/shravant23/what-moves-your-stock to analyze any ticker "
                     "with your own free API keys."
                 ),
             )
