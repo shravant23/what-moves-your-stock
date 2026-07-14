@@ -50,6 +50,43 @@ Prism's answer is to make the reasoning **traceable** and the evidence
   interactive map of textbook macro linkages — hover `Fed funds rate` and
   watch the consequences light up.
 
+## Engineering highlights
+
+The interesting problems here are reliability problems — making LLM output
+trustworthy enough to put in front of a user, on top of messy real-world data,
+within hard free-tier constraints.
+
+- **LLM output treated as untrusted input.** Every model call is
+  schema-constrained against Pydantic models (temperature 0 for extraction,
+  one retry with the validation error fed back). Then two *mechanical* gates
+  run in code: every citation's quote is string-matched against the actual
+  filing text (normalized for unicode/whitespace), and every causal chain the
+  model asserts must be a real edge-walk through the graph — hallucinations
+  are dropped, not prompted away.
+- **Integration across five heterogeneous data sources**, each with its own
+  quirks handled explicitly: SEC EDGAR inline-XBRL documents (hidden metadata
+  stripping, section carving that survives table-of-contents collisions and
+  inline cross-references), FRED (including discontinued OECD series replaced
+  with live proxies), World Bank, yfinance, and a web-grounded LLM whose
+  source URLs come from search metadata so they can't be fabricated.
+- **Designed for hostile free-tier constraints.** Per-model daily quotas
+  (as low as 20 requests/day) drove a model-ladder fallback with quota
+  memoization, 429/503 backoff, and per-topic caching so a failed call loses
+  one trend, not the whole pipeline run.
+- **Async job architecture** — analyses run as background jobs with real
+  staged progress (polled by the UI), idempotent job dedup per ticker, and a
+  read-through SQLite cache with per-source TTLs (filings immutable, macro
+  daily, country data weekly).
+- **Abuse-resistant public deployment.** Demo mode serves bundled
+  pre-analyzed tickers forever and meters fresh analyses with a persistent
+  daily budget — a public instance can't have its LLM quota drained.
+- **Canvas rendering with progressive disclosure** — the force-directed map
+  stays readable at 60+ nodes via hover spotlighting, zoom-dependent labels,
+  chain tracing with animated particles, and category filters.
+- **38 pytest tests, zero network/keys required, running in CI** on every
+  push — covering exactly the layers that guard correctness: verification,
+  parsing, graph wiring, and the reasoning guardrails.
+
 ## How it works
 
 1. **Extract** — the latest 10-K + two 10-Qs are pulled from SEC EDGAR and an
