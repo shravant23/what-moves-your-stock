@@ -4,7 +4,51 @@
 macro exposure network map and a cited, traceable macro analysis report —
 tailwinds, headwinds, what's priced in, and what would falsify the thesis.
 
+![Prism — NVDA analysis view](docs/analysis-nvda.png)
+
 > Prism is a research tool, not investment advice.
+
+## Why this exists
+
+When the Fed cuts rates, copper rallies, or China's property market slides —
+what does that actually mean for the stock *you're* watching? The answer
+exists, but it's scattered across 700,000 characters of SEC filings, a dozen
+macro data series, and this week's industry news. Most people either guess,
+or borrow someone else's opinion.
+
+The obvious shortcut — asking a chatbot — has a known failure mode:
+confident, plausible, uncited answers that are sometimes simply made up.
+
+Prism's answer is to make the reasoning **traceable** and the evidence
+**mechanically verifiable**:
+
+- **Every claim carries a verbatim quote** from the company's own 10-K/10-Q,
+  string-matched against the filing text in code — hallucinated citations are
+  rejected before they render.
+- **Every causal story is a real path** through an explicit, hand-curated
+  ~120-edge macro graph (`rates → housing → homebuilders`), not free-form
+  prose — chains the LLM invents get dropped.
+- **Price context is built in** — each chain notes what recent market moves
+  already reflect ("copper +41% y/y — largely priced in").
+- **Both sides get argued.** Every report has tailwinds *and* headwinds, plus
+  concrete falsifiers ("copper below $9,000/t for two straight quarters").
+
+## What you'd use it for
+
+- **Understand a holding in five minutes.** One screen shows what the company
+  is actually exposed to — by its own filings, not by vibes — and how those
+  forces are trending right now.
+- **Triage a headline.** "New tariffs announced" — open the map, click the
+  tariff node, and see exactly which paths lead from that policy to the
+  company, with lags and confidence.
+- **Check what's priced in.** Every chain is annotated against trailing price
+  action of the stock and its commodity/sector proxies, so you can separate
+  "real development" from "already in the price."
+- **Monitor a thesis.** The Thesis Breakers tab is a checklist of observable
+  events that would falsify the analysis — the things worth watching.
+- **Learn how macro actually transmits.** The standalone graph explorer is an
+  interactive map of textbook macro linkages — hover `Fed funds rate` and
+  watch the consequences light up.
 
 ## How it works
 
@@ -21,37 +65,67 @@ tailwinds, headwinds, what's priced in, and what would falsify the thesis.
    and concrete thesis breakers. Chain paths and citations are re-validated
    in code.
 
+<details>
+<summary>A first analysis takes 1–3 minutes, with a staged progress screen driven by real pipeline state</summary>
+
+![Staged analysis progress](docs/progress.png)
+
+</details>
+
 ## Architecture
+
+Three stages: **gather → reason → verify**. Nothing the LLM asserts reaches
+the screen unless it survives the verify gate.
+
+```mermaid
+flowchart TD
+    classDef input fill:#DBEAFE,stroke:#3B82F6,color:#1E3A8A,stroke-width:2px
+    classDef gather fill:#D1FAE5,stroke:#10B981,color:#065F46,stroke-width:2px
+    classDef reason fill:#EDE9FE,stroke:#8B5CF6,color:#4C1D95,stroke-width:2px
+    classDef trust fill:#FEF3C7,stroke:#F59E0B,color:#92400E,stroke-width:2px
+    classDef out fill:#DBEAFE,stroke:#3B82F6,color:#1E3A8A,stroke-width:2px
+    classDef bin fill:#FEE2E2,stroke:#EF4444,color:#991B1B
+
+    T(["&nbsp; 🔍 You enter a ticker &nbsp;"]):::input
+
+    T --> E & M & W
+
+    E["&nbsp; 📄 SEC filings &nbsp;<br/><br/>latest 10-K + 10-Qs<br/>(EDGAR)"]:::gather
+    M["&nbsp; 📈 Macro & prices &nbsp;<br/><br/>rates · CPI · commodities · FX<br/>(FRED · World Bank · yfinance)"]:::gather
+    W["&nbsp; 🌐 Live sector conditions &nbsp;<br/><br/>web-grounded search,<br/>real source URLs required"]:::gather
+
+    E --> R
+    M --> R
+    W --> R
+
+    R["&nbsp; 🧠 Reason &nbsp;<br/><br/>LLM extracts the company's exposures,<br/>wires them into a ~120-edge causal graph,<br/>argues tailwinds AND headwinds"]:::reason
+
+    R --> V
+
+    V{"&nbsp; 🛡️ Verify &nbsp;<br/><br/>every quote string-matched to the filing<br/>every chain checked against real graph edges"}:::trust
+
+    V -->|passes| O["&nbsp; ✨ Interactive exposure map + cited report &nbsp;<br/><br/>tailwinds · headwinds · what's priced in · thesis breakers"]:::out
+    V -->|fails| X["🗑️ discarded"]:::bin
+```
+
+### The stack
 
 ```mermaid
 flowchart LR
-    subgraph Frontend["Frontend — Next.js 14 + TypeScript"]
-        UI["Analysis page /t/[ticker]<br/>Graph explorer /graph"]
-    end
+    classDef box fill:#F1F5F9,stroke:#64748B,color:#0F172A,stroke-width:2px
 
-    subgraph Backend["Backend — FastAPI + SQLite"]
-        API["REST API"]
-        PIPE["Analysis pipeline<br/>(async jobs, staged progress)"]
-        GRAPH["Causal graph<br/>(~120 curated edges)"]
-        CACHE[("SQLite cache<br/>filings · macro · reports")]
-    end
+    FE["&nbsp; 🖥️ Frontend &nbsp;<br/><br/>Next.js 14 · TypeScript<br/>react-force-graph"]:::box
+    BE["&nbsp; ⚙️ Backend &nbsp;<br/><br/>FastAPI · Pydantic v2<br/>async jobs with staged progress"]:::box
+    DB[("&nbsp; 🗃️ SQLite &nbsp;<br/><br/>cache + causal graph")]:::box
+    EXT["&nbsp; ☁️ Free APIs only &nbsp;<br/><br/>EDGAR · FRED · World Bank<br/>yfinance · Gemini"]:::box
 
-    subgraph Sources["Free data sources"]
-        EDGAR["SEC EDGAR<br/>10-K / 10-Q"]
-        FRED["FRED<br/>macro series"]
-        WB["World Bank<br/>country data"]
-        YF["yfinance<br/>prices"]
-        LLM["Gemini LLM<br/>+ web search grounding"]
-    end
-
-    UI -->|"analyze · poll status · fetch report/graph"| API
-    API --> PIPE
-    PIPE <--> CACHE
-    PIPE --> GRAPH
-    PIPE --> EDGAR & FRED & WB & YF & LLM
+    FE <-->|"REST + job polling"| BE
+    BE <--> DB
+    BE --> EXT
 ```
 
-### The analysis pipeline
+<details>
+<summary><b>Engineer's view — the full pipeline, gate by gate</b></summary>
 
 ```mermaid
 flowchart TD
@@ -72,9 +146,7 @@ flowchart TD
     REP --> K[("Cached 24h")]
 ```
 
-The two diamond gates are the trust story: nothing the LLM asserts reaches the
-UI unless its quotes literally appear in the filings and its causal chains are
-real walks through the graph.
+</details>
 
 ## Quickstart
 
@@ -131,7 +203,7 @@ cd backend
 python -m pytest tests -q
 ```
 
-37 tests cover the citation verifier (hallucination rejection), filing
+38 tests cover the citation verifier (hallucination rejection), filing
 section carving, seed-graph integrity, subgraph wiring (edge signs, trend
 nodes, standalone exposures), reasoning-engine guardrails (invalid chain
 paths dropped, unverifiable evidence stripped), cache TTL semantics, and
